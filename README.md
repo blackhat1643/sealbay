@@ -88,8 +88,7 @@ Limits on Vercel: uploads are capped at 4 MB (the platform's request limit), and
 | `/guides.php`, `/guides/<guide>` | How-to guides (6 to start) |
 | `/custom-quote.php` | Send a photo for a custom quote |
 | `/delivery-returns.php`, `/terms-of-sale.php`, `/privacy-policy.php` | Policies |
-| `/contact.php` | Contact |
-| `/about.php` | About — the shop and the company behind it (Sealing Technologies), brands, industries, clients |
+| `/contact.php`, `/about.php` | Contact and about |
 | `/admin/` | Admin panel |
 
 ```
@@ -104,7 +103,7 @@ Limits on Vercel: uploads are capped at 4 MB (the platform's request limit), and
 ├── includes/     bootstrap, config, db, security, content (catalogue + size finder), shop (cart,
 │                 delivery, orders, stock, email), payments (Stripe), enquiry (forms), seo, render,
 │                 icons, illustrations, header / navbar / footer, components/
-├── data/         Sample categories, products, materials guide, how-to guides, company profile
+├── data/         Sample categories, products, materials guide, how-to guides
 ├── database/schema.sql
 ├── storage/      Private: uploads, logs, cache, SQLite file, install lock
 └── assets/       css, js, fonts, img (photos, share image), uploads (product photos)
@@ -186,18 +185,6 @@ Tables: `admins`, `login_attempts`, `settings`, `categories`, `products`, `order
 - [ ] `app.site_url` set, `app.env` is `production`, `/install` deleted, HTTPS forced
 
 Not built yet, from the plan's marketing ideas: customer reviews after delivery, and a Google Business Profile (set that up directly with Google if you have a shopfront or pickup point).
-
-## 9b. Company profile, clients and brand partnerships
-
-The "company behind the shop" content (About page, the *Backed by Sealing Technologies* band on the homepage, the footer line) comes from **`data/company.php`**: founding year, mission, facts, Parker Hannifin channel partnership and other brands, product scope, industries, clients, sales force and inventory range. Edit that file to change any of it.
-
-**Client logos.** Clients are shown by name until a logo file is supplied. To show a logo, save a file you have the client's permission to use as `assets/img/clients/<slug>.svg` (or `.png` / `.webp`), where the slug is the first value on that client's line in `data/company.php`:
-
-`reliance-industries`, `adani-group`, `vedanta-group`, `acc`, `ambuja-cements`, `ultratech-cement`, `dalmia-bharat`, `india-cements`
-
-Logos are never downloaded from other websites. Brand names (Parker Hannifin, JM Clipper, Stuwe, GLUAL) are shown as text; add brand artwork only if the brand has approved it for partner use.
-
-Wording note: claims from the corporate profile such as "100% genuine", "zero leakage", "failure-proof" and "guaranteed delivery" were rewritten as plain factual statements, because absolute claims on a consumer shop can be treated as promises.
 
 ## 10. Security summary
 

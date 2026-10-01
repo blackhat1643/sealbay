@@ -360,29 +360,6 @@ function article_url(string $slug): string
         : url('guide.php?slug=' . rawurlencode($slug));
 }
 
-/* ---------- Company profile (file-based) ---------- */
-
-/** The company behind the shop (data/company.php). */
-function company_profile(): array
-{
-    return data_file('company');
-}
-
-/**
- * Logo for a client, if a file has been supplied in assets/img/clients.
- * Logos are never fetched from elsewhere: no file means the name is shown as text.
- */
-function client_logo(string $slug): ?string
-{
-    foreach (['svg', 'png', 'webp', 'jpg'] as $ext) {
-        $rel = 'img/clients/' . $slug . '.' . $ext;
-        if (preg_match('/^[a-z0-9-]+$/', $slug) && is_file(ST_ROOT . '/assets/' . $rel)) {
-            return asset($rel);
-        }
-    }
-    return null;
-}
-
 /* ---------- Materials (file-based) ---------- */
 
 function materials(): array
