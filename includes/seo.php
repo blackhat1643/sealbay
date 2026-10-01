@@ -76,6 +76,10 @@ function schema_organization(): array
     if (company('abn') !== '') {
         $org['taxID'] = company('abn');
     }
+    if ($parent = company_profile()) {
+        $org['parentOrganization'] = ['@type' => 'Organization', 'name' => $parent['name'], 'foundingDate' => $parent['founded'],
+            'address' => ['@type' => 'PostalAddress', 'addressLocality' => 'Vadodara', 'addressRegion' => 'Gujarat', 'addressCountry' => 'IN']];
+    }
     $same = array_values(array_filter([company('facebook'), company('instagram'), company('youtube')]));
     if ($same) {
         $org['sameAs'] = $same;

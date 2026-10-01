@@ -19,6 +19,7 @@ $counts     = array_count_values(array_column($products, 'category'));
 $materials  = materials();
 $guides     = array_slice(articles(), 0, 3);
 $heroPhoto  = photo('hero');
+$profile    = company_profile();
 
 require __DIR__ . '/includes/header.php';
 ?>
@@ -124,6 +125,37 @@ require __DIR__ . '/includes/header.php';
     </div>
   </div>
 </section>
+
+<?php if ($profile): ?>
+<section class="section section--navy bg-grid" id="company">
+  <div class="container">
+    <div class="intro intro--center">
+      <div data-reveal>
+        <p class="eyebrow eyebrow--light">The company behind the shop</p>
+        <h2 class="sec-head__title" style="margin-bottom:24px">Backed by <?= e($profile['name']) ?></h2>
+        <p class="lead"><?= e($name) ?> is the online shop of <?= e($profile['name']) ?>, an industrial sealing distributor founded in <?= e($profile['founded']) ?> in <?= e($profile['location']) ?>.</p>
+        <p><?= e($profile['principal']['status']) ?>, and distributor for <?= e(implode(', ', array_map(static fn ($b) => $b[0] . ' (' . $b[1] . ')', $profile['brands']))) ?>.</p>
+        <div class="btn-row">
+          <a class="btn btn--primary" href="<?= e(url('about.php')) ?>">About the company <?= icon('arrow-right', 18) ?></a>
+        </div>
+      </div>
+      <ul class="fact-row fact-row--dark fact-row--2" data-reveal style="--d:120ms">
+        <?php foreach ($profile['facts'] as [$value, $label, $note]): ?>
+        <li class="fact">
+          <p class="fact__value"><?= e($value) ?></p>
+          <p class="fact__label"><?= e($label) ?></p>
+          <p class="fact__note"><?= e($note) ?></p>
+        </li>
+        <?php endforeach; ?>
+      </ul>
+    </div>
+    <div class="client-strip">
+      <p class="client-strip__label">Clients of <?= e($profile['name']) ?> include</p>
+      <?php component('clients', ['compact' => true]); ?>
+    </div>
+  </div>
+</section>
+<?php endif; ?>
 
 <?php if ($guides): ?>
 <section class="section" id="guides">

@@ -23,6 +23,9 @@ $brandParts = explode(' ', company('name'), 2);
         </a>
         <p class="site-footer__tagline"><?= e(company('tagline')) ?></p>
         <p class="site-footer__about">Find a replacement seal by its measurements and have it sent to your door. Prices are in Australian dollars and include GST.</p>
+        <?php if ($parentCo = company_profile()): ?>
+        <p class="site-footer__about">The online shop of <a href="<?= e(url('about.php')) ?>"><?= e($parentCo['name']) ?></a>, <?= e($parentCo['location']) ?> — <?= e(lcfirst($parentCo['principal']['status'])) ?>.</p>
+        <?php endif; ?>
         <?php if ($abn !== ''): ?><p class="site-footer__abn">ABN <?= e($abn) ?></p><?php elseif (is_dev()): ?><p class="site-footer__abn">ABN — not set (add it in Admin → Business Details)</p><?php endif; ?>
         <ul class="social" aria-label="Social media">
           <?php foreach ($socials as $key => $label): $link = company($key); ?>

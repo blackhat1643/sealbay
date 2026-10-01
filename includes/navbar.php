@@ -50,6 +50,7 @@ $brandParts    = explode(' ', company('name'), 2);
         <li class="nav__item"><a class="nav__link<?= nav_active('materials.php') ? ' is-active' : '' ?>" href="<?= e(url('materials.php')) ?>">Materials</a></li>
         <li class="nav__item"><a class="nav__link<?= nav_active('guides.php', 'guide.php', 'guides') ? ' is-active' : '' ?>" href="<?= e(url('guides.php')) ?>">Guides</a></li>
         <li class="nav__item"><a class="nav__link<?= nav_active('delivery-returns.php') ? ' is-active' : '' ?>" href="<?= e(url('delivery-returns.php')) ?>">Delivery &amp; Returns</a></li>
+        <li class="nav__item"><a class="nav__link<?= nav_active('about.php') ? ' is-active' : '' ?>" href="<?= e(url('about.php')) ?>">About</a></li>
         <li class="nav__item"><a class="nav__link<?= nav_active('contact.php') ? ' is-active' : '' ?>" href="<?= e(url('contact.php')) ?>">Contact</a></li>
       </ul>
 
