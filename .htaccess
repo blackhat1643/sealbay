@@ -1,0 +1,79 @@
+# ------------------------------------------------------------------
+# SealBay Australia — Apache / LiteSpeed configuration
+# ------------------------------------------------------------------
+
+Options -Indexes -MultiViews
+DirectoryIndex index.php
+
+# If the site is installed in a sub-folder, change these to /sub-folder/404.php
+ErrorDocument 404 /404.php
+ErrorDocument 403 /404.php
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Force HTTPS — uncomment once the SSL certificate is active.
+  # RewriteCond %{HTTPS} !=on
+  # RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+  RewriteRule ^sitemap\.xml$ sitemap.php [L]
+  RewriteRule ^robots\.txt$ robots.php [L]
+
+  # Pretty URLs (switch off with app.pretty_urls = false if mod_rewrite is unavailable)
+  RewriteRule ^shop/([a-z0-9-]+)/?$ shop.php?category=$1 [L,QSA]
+  RewriteRule ^seal/([a-z0-9-]+)/?$ product.php?slug=$1 [L,QSA]
+  RewriteRule ^guides/([a-z0-9-]+)/?$ guide.php?slug=$1 [L,QSA]
+
+  # Private folders, hidden files and development files are never served.
+  RewriteRule ^(includes|data|database|storage)(/|$) - [F,L]
+  RewriteRule (^|/)\.(?!well-known/) - [F,L]
+  RewriteRule ^(router\.php|README\.md)$ - [F,L]
+</IfModule>
+
+<FilesMatch "\.(sql|sqlite|lock|log|jsonl|md|ini|bak)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+# Security headers for static files (PHP pages send their own, including the CSP).
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always unset X-Powered-By
+</IfModule>
+
+# Compression
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css text/plain text/xml application/xml application/javascript application/json image/svg+xml
+</IfModule>
+
+# Browser caching — assets carry a ?v= timestamp, so they can be cached for a long time.
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresDefault "access plus 1 hour"
+  ExpiresByType text/html "access plus 0 seconds"
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType text/javascript "access plus 1 year"
+  ExpiresByType font/woff2 "access plus 1 year"
+  ExpiresByType image/webp "access plus 1 year"
+  ExpiresByType image/jpeg "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/svg+xml "access plus 1 year"
+</IfModule>
+<IfModule mod_headers.c>
+  <FilesMatch "\.(css|js|woff2|webp|jpe?g|png|svg)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+</IfModule>
+
+<IfModule mod_mime.c>
+  AddType font/woff2 .woff2
+  AddType image/webp .webp
+  AddType image/svg+xml .svg
+</IfModule>

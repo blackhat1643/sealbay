@@ -1,0 +1,12 @@
+# Local / server-specific configuration and runtime data
+includes/config.local.php
+storage/*.sqlite
+storage/installed.lock
+storage/logs/*
+storage/cache/*
+storage/uploads/*
+storage/enquiries/*
+assets/uploads/*
+!**/.gitkeep
+!assets/uploads/.htaccess
+.DS_Store
