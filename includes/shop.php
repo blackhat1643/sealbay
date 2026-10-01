@@ -421,11 +421,44 @@ function send_mail(string $to, string $subject, string $body, ?string $replyTo =
     if ($replyTo !== null && filter_var($replyTo, FILTER_VALIDATE_EMAIL)) {
         $headers[] = 'Reply-To: ' . $replyTo;
     }
+    if ((string) config('mail.resend_api_key', '') !== '') {
+        return send_mail_resend($to, $strip($subject), $body, $strip((string) config('mail.from_name', company('name'))) . ' <' . $from . '>', $replyTo);
+    }
     $sent = @mail($to, mb_encode_mimeheader($strip($subject)), $body, implode("\r\n", $headers), '-f' . $from);
     if (!$sent) {
         app_log('Email could not be sent: ' . $strip($subject));
     }
     return $sent;
+}
+
+/**
+ * Send through the Resend HTTP API (https://resend.com) — for hosts such as Vercel
+ * where PHP mail() is not available. The "from" domain must be verified in Resend.
+ */
+function send_mail_resend(string $to, string $subject, string $body, string $from, ?string $replyTo): bool
+{
+    if (!function_exists('curl_init')) {
+        return false;
+    }
+    $payload = ['from' => $from, 'to' => [$to], 'subject' => $subject, 'text' => $body];
+    if ($replyTo !== null && filter_var($replyTo, FILTER_VALIDATE_EMAIL)) {
+        $payload['reply_to'] = $replyTo;
+    }
+    $ch = curl_init((string) (getenv('RESEND_API_BASE') ?: 'https://api.resend.com') . '/emails');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST           => true,
+        CURLOPT_TIMEOUT        => 15,
+        CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . config('mail.resend_api_key'), 'Content-Type: application/json'],
+        CURLOPT_POSTFIELDS     => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+    ]);
+    $response = curl_exec($ch);
+    $status   = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+    if ($status < 200 || $status >= 300) {
+        app_log('Resend email failed (' . $status . '): ' . mb_substr((string) $response, 0, 200));
+        return false;
+    }
+    return true;
 }
 
 /** Plain-text summary of an order (used in both emails). */

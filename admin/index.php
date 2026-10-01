@@ -56,7 +56,7 @@ if (!isset(settings()['shop_shipping_standard'])) {
     $todo[] = ['Shipping rates and delivery estimates are still the sample values. Set your own.', 'shop-settings.php'];
 }
 if (!stripe_enabled() && !bank_details()) {
-    $todo[] = ['No payment method is configured. Add Stripe keys or bank details to the configuration file.', null];
+    $todo[] = ['No payment method is configured. Add Stripe keys or bank details to the configuration (file or environment variables).', null];
 } elseif (stripe_enabled() && (string) config('payments.stripe_webhook_secret', '') === '') {
     $todo[] = ['Add the Stripe webhook secret so payments are confirmed even if a buyer closes the browser.', null];
 }
@@ -66,8 +66,11 @@ if ((string) config('mail.to', '') === '') {
 if ((string) config('app.site_url', '') === '') {
     $todo[] = ['Set app.site_url in the configuration file (used in emails, canonical URLs and the sitemap).', null];
 }
-if (is_dir(ST_ROOT . '/install')) {
+if (!storage_in_db() && is_dir(ST_ROOT . '/install')) {
     $todo[] = ['Delete the /install folder from the server.', null];
+}
+if (storage_in_db() && (string) config('mail.resend_api_key', '') === '') {
+    $todo[] = ['This host cannot send email by itself. Add a Resend API key (RESEND_API_KEY) so order and dispatch emails are sent.', null];
 }
 
 admin_header('Dashboard', 'dashboard');

@@ -8,12 +8,25 @@ if (!defined('ST_APP')) {
     define('ST_APP', true);
 }
 define('ST_ROOT', dirname(__DIR__));
-define('ST_STORAGE', ST_ROOT . '/storage');
 
 $GLOBALS['st_config'] = require __DIR__ . '/config.php';
 
+// Working files (logs, cache, uploads in transit). On hosts without a persistent
+// disk the project folder is read-only, so the system temp folder is used instead.
+$storage = ST_ROOT . '/storage';
+if ($GLOBALS['st_config']['app']['storage'] === 'db' || !is_writable($storage)) {
+    $storage = sys_get_temp_dir() . '/sealbay-storage';
+    foreach (['', '/logs', '/cache', '/uploads', '/enquiries'] as $dir) {
+        if (!is_dir($storage . $dir)) {
+            @mkdir($storage . $dir, 0700, true);
+        }
+    }
+}
+define('ST_STORAGE', $storage);
+
 require __DIR__ . '/functions.php';
 require __DIR__ . '/db.php';
+require __DIR__ . '/storage.php';
 require __DIR__ . '/security.php';
 require __DIR__ . '/content.php';
 require __DIR__ . '/seo.php';

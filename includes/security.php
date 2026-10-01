@@ -48,6 +48,10 @@ function start_session(): void
     ]);
     ini_set('session.use_strict_mode', '1');
     ini_set('session.use_only_cookies', '1');
+    // Without a persistent disk, session files would vanish between requests — keep them in the database.
+    if (storage_in_db() && db_ready()) {
+        session_set_save_handler(new DbSessionHandler(), true);
+    }
     session_start();
 }
 
@@ -142,6 +146,21 @@ function spam_trap_triggered(string $form): bool
  */
 function rate_limit_allow(string $bucket, int $max, int $windowSeconds): bool
 {
+    if (storage_in_db() && db_ready()) {
+        try {
+            $key = hash('sha256', $bucket);
+            $now = time();
+            db_run('DELETE FROM rate_hits WHERE hit_at < ?', [$now - 86400]);
+            if ((int) db_value('SELECT COUNT(*) FROM rate_hits WHERE bucket = ? AND hit_at > ?', [$key, $now - $windowSeconds]) >= $max) {
+                return false;
+            }
+            db_run('INSERT INTO rate_hits (bucket, hit_at) VALUES (?, ?)', [$key, $now]);
+            return true;
+        } catch (PDOException $ex) {
+            app_log('rate_limit_allow(): ' . $ex->getMessage());
+            return true;
+        }
+    }
     $dir = ST_STORAGE . '/cache';
     if (!is_dir($dir) || !is_writable($dir)) {
         return true;

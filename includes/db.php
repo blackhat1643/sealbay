@@ -47,6 +47,23 @@ function db(): ?PDO
                 config('db.name'),
                 config('db.charset', 'utf8mb4')
             );
+            if (config('db.ssl')) {
+                // Cloud databases require TLS. Use the system CA bundle to verify the server.
+                $ca = '';
+                foreach ([(string) (openssl_get_cert_locations()['default_cert_file'] ?? ''), '/etc/pki/tls/certs/ca-bundle.crt', '/etc/ssl/certs/ca-certificates.crt', '/etc/ssl/cert.pem'] as $file) {
+                    if ($file !== '' && is_file($file)) {
+                        $ca = $file;
+                        break;
+                    }
+                }
+                // PHP 8.5 moved the driver constants to Pdo\Mysql; older versions only have the PDO:: ones.
+                $sslCa = defined('Pdo\\Mysql::ATTR_SSL_CA') ? constant('Pdo\\Mysql::ATTR_SSL_CA') : constant('PDO::MYSQL_ATTR_SSL_CA');
+                if ($ca !== '') {
+                    $options[$sslCa] = $ca;
+                } else {
+                    app_log('db(): TLS requested but no CA bundle was found on this server.');
+                }
+            }
             $pdo = new PDO($dsn, (string) config('db.user'), (string) config('db.pass'), $options);
         }
     } catch (PDOException $ex) {
@@ -64,7 +81,9 @@ function db_ready(): bool
     if ($ready !== null) {
         return $ready;
     }
-    if (!is_file(ST_STORAGE . '/installed.lock') || !db()) {
+    // On normal hosting the installer leaves a lock file. Without a persistent disk
+    // there is nowhere to keep one, so the database itself is the marker.
+    if ((!storage_in_db() && !is_file(ST_STORAGE . '/installed.lock')) || !db()) {
         return $ready = false;
     }
     try {
@@ -116,6 +135,7 @@ function schema_statements(?string $driver = null): array
     $int   = $mysql ? 'INT UNSIGNED' : 'INTEGER';
     $bool  = $mysql ? 'TINYINT(1)' : 'INTEGER';
     $long  = $mysql ? 'MEDIUMTEXT' : 'TEXT';
+    $blob  = $mysql ? 'MEDIUMBLOB' : 'BLOB';
     $tail  = $mysql ? ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci' : '';
 
     return [
@@ -266,6 +286,31 @@ function schema_statements(?string $driver = null): array
             created_at DATETIME NOT NULL
         )$tail",
 
+        // The next three tables are only used when app.storage = 'db' (hosts without a persistent disk).
+        "CREATE TABLE IF NOT EXISTS sessions (
+            id VARCHAR(128) NOT NULL PRIMARY KEY,
+            data $long NOT NULL,
+            expires_at INT NOT NULL
+        )$tail",
+
+        "CREATE TABLE IF NOT EXISTS uploads (
+            name VARCHAR(80) NOT NULL PRIMARY KEY,
+            kind VARCHAR(20) NOT NULL,
+            mime VARCHAR(80) NOT NULL,
+            width INT NOT NULL DEFAULT 0,
+            height INT NOT NULL DEFAULT 0,
+            data $blob NOT NULL,
+            created_at DATETIME NOT NULL
+        )$tail",
+
+        "CREATE TABLE IF NOT EXISTS rate_hits (
+            id $pk,
+            bucket VARCHAR(64) NOT NULL,
+            hit_at INT NOT NULL
+        )$tail",
+
+        'CREATE INDEX idx_sessions_expiry ON sessions (expires_at)',
+        'CREATE INDEX idx_rate_hits ON rate_hits (bucket, hit_at)',
         'CREATE INDEX idx_enquiries_status ON enquiries (status, created_at)',
         'CREATE INDEX idx_login_attempts ON login_attempts (ip_address, attempted_at)',
         'CREATE INDEX idx_products_category ON products (category_id, sort_order)',

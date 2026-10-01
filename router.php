@@ -5,7 +5,8 @@
  *     php -S localhost:8000 router.php
  *
  * It mirrors the rules in .htaccess so local behaviour matches production.
- * Apache / LiteSpeed never use this file.
+ * Apache / LiteSpeed never use this file. On Vercel the same routing is used
+ * through api/index.php (the PHP runtime there is also the built-in server).
  */
 if (PHP_SAPI !== 'cli-server') {
     http_response_code(404);
@@ -50,15 +51,31 @@ if (preg_match('#^/guides/([a-z0-9-]+)/?$#', $path, $m)) {
     return $serve(__DIR__ . '/guide.php', ['slug' => $m[1]]);
 }
 
-$file = __DIR__ . $path;
-if (is_dir($file)) {
-    $file = rtrim($file, '/') . '/index.php';
+// Static files: only what lives in /assets, plus the favicon.
+if ($path === '/favicon.ico' || preg_match('#^/assets/[A-Za-z0-9/_.-]+\.(css|js|woff2|webp|jpe?g|png|svg|ico)$#', $path)) {
+    $static = __DIR__ . $path;
+    if (!str_contains($path, '..') && is_file($static)) {
+        if (isset($_SERVER['VERCEL']) || getenv('VERCEL')) {
+            // Normally answered by Vercel's CDN (see vercel.json); this is only a fallback.
+            $types = ['css' => 'text/css', 'js' => 'application/javascript', 'woff2' => 'font/woff2', 'webp' => 'image/webp', 'jpg' => 'image/jpeg',
+                      'jpeg' => 'image/jpeg', 'png' => 'image/png', 'svg' => 'image/svg+xml', 'ico' => 'image/x-icon'];
+            header('Content-Type: ' . $types[strtolower(pathinfo($static, PATHINFO_EXTENSION))]);
+            header('Cache-Control: public, max-age=31536000, immutable');
+            readfile($static);
+            return true;
+        }
+        return false; // let the built-in server send the file
+    }
 }
-if (is_file($file)) {
-    if (pathinfo($file, PATHINFO_EXTENSION) === 'php') {
+
+// PHP pages: files in the site root, /admin and /install only.
+if (preg_match('#^/(?:(admin|install)/)?([a-z0-9-]+\.php)?$#', $path, $m) || in_array($path, ['/admin', '/install'], true)) {
+    $dir  = $m[1] ?? trim($path, '/');
+    $name = $m[2] ?? 'index.php';
+    $file = __DIR__ . ($dir !== '' ? '/' . $dir : '') . '/' . $name;
+    if ($name !== 'router.php' && is_file($file)) {
         return $serve($file);
     }
-    return false; // let the built-in server send static files
 }
 
 http_response_code(404);

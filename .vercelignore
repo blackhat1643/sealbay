@@ -1,0 +1,15 @@
+# Not needed on Vercel (and never upload local settings or runtime data)
+includes/config.local.php
+storage/*.sqlite
+storage/installed.lock
+storage/logs/*
+storage/cache/*
+storage/uploads/*
+storage/enquiries/*
+assets/uploads/*
+database/
+.htaccess
+**/.htaccess
+README.md
+.git
+.DS_Store

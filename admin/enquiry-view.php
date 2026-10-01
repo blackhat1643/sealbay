@@ -17,6 +17,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     if (a_post('action') === 'delete') {
         if ($enquiry['attachment_path'] && preg_match('/^[a-f0-9]{32}\.[a-z0-9]{3,4}$/', $enquiry['attachment_path'])) {
             @unlink(ST_STORAGE . '/uploads/' . $enquiry['attachment_path']);
+            stored_file_delete($enquiry['attachment_path']);
         }
         db_run('DELETE FROM enquiries WHERE id = ?', [$id]);
         flash('admin_ok', 'Message ' . $enquiry['reference'] . ' deleted.');

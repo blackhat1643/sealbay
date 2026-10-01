@@ -128,6 +128,8 @@ function handle_enquiry(string $type): array
             $upload = handle_upload($_FILES['attachment'], (array) config('uploads.enquiry_types'), (int) config('uploads.max_bytes'), ST_STORAGE . '/uploads');
             if (!$upload['ok']) {
                 $errors['attachment'] = $upload['error'];
+            } elseif (storage_in_db() && !stored_file_put($upload['file'], ST_STORAGE . '/uploads/' . $upload['file'], 'enquiry')) {
+                $errors['attachment'] = 'The photo could not be saved. Please try again.';
             }
         } elseif ($fileError !== UPLOAD_ERR_NO_FILE) {
             $errors['attachment'] = 'Please choose your photo again after correcting the fields above.';

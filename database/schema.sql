@@ -154,6 +154,32 @@ CREATE TABLE IF NOT EXISTS enquiries (
     created_at DATETIME NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS sessions (
+    id VARCHAR(128) NOT NULL PRIMARY KEY,
+    data MEDIUMTEXT NOT NULL,
+    expires_at INT NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS uploads (
+    name VARCHAR(80) NOT NULL PRIMARY KEY,
+    kind VARCHAR(20) NOT NULL,
+    mime VARCHAR(80) NOT NULL,
+    width INT NOT NULL DEFAULT 0,
+    height INT NOT NULL DEFAULT 0,
+    data MEDIUMBLOB NOT NULL,
+    created_at DATETIME NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS rate_hits (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    bucket VARCHAR(64) NOT NULL,
+    hit_at INT NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE INDEX idx_sessions_expiry ON sessions (expires_at);
+
+CREATE INDEX idx_rate_hits ON rate_hits (bucket, hit_at);
+
 CREATE INDEX idx_enquiries_status ON enquiries (status, created_at);
 
 CREATE INDEX idx_login_attempts ON login_attempts (ip_address, attempted_at);

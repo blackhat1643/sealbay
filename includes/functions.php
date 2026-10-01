@@ -23,6 +23,9 @@ function is_local_request(): bool
     if (PHP_SAPI === 'cli') {
         return true;
     }
+    if (getenv('VERCEL') || getenv('VERCEL_URL')) {
+        return false;
+    }
     return in_array((string) ($_SERVER['REMOTE_ADDR'] ?? ''), ['127.0.0.1', '::1'], true)
         && empty($_SERVER['HTTP_X_FORWARDED_FOR'])
         && preg_match('/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/', (string) ($_SERVER['HTTP_HOST'] ?? '')) === 1;
@@ -271,7 +274,10 @@ function uploaded_image(?string $relPath, string $alt = ''): ?array
     }
     $file = ST_ROOT . '/assets/' . $relPath;
     if (!is_file($file)) {
-        return null;
+        // Hosts without a persistent disk keep uploaded images in the database (served by media.php).
+        $name = basename($relPath);
+        $meta = stored_images_meta()[$name] ?? null;
+        return $meta ? ['src' => url('media.php?f=' . $name), 'alt' => $alt, 'w' => $meta[0], 'h' => $meta[1]] : null;
     }
     $size = @getimagesize($file) ?: [0, 0];
     return ['src' => asset($relPath), 'alt' => $alt, 'w' => (int) $size[0], 'h' => (int) $size[1]];
@@ -365,6 +371,14 @@ function excerpt(string $text, int $limit = 160): string
 function client_ip(): string
 {
     $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
+    // On Vercel PHP sits behind the platform's proxy, which sets these headers itself
+    // (a value sent by the visitor is overwritten), so they can be trusted there.
+    if (getenv('VERCEL') || getenv('VERCEL_URL')) {
+        $forwarded = (string) ($_SERVER['HTTP_X_REAL_IP'] ?? explode(',', (string) ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''))[0]);
+        if (filter_var(trim($forwarded), FILTER_VALIDATE_IP)) {
+            return trim($forwarded);
+        }
+    }
     return filter_var($ip, FILTER_VALIDATE_IP) ? $ip : '0.0.0.0';
 }
 

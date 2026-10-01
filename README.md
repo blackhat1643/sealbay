@@ -42,6 +42,36 @@ That uses a SQLite file in `storage/`, so no MySQL server is needed on your mach
 
 If `mod_rewrite` is not available, set `app.pretty_urls` to `false`; product, category and guide addresses then use `product.php?slug=…` style URLs.
 
+## 2b. Deploy on Vercel
+
+Vercel has no built-in PHP, no writable disk, no MySQL and no `mail()`, so the site runs there in a slightly different mode. Everything it needs is already in the repository:
+
+- `vercel.json` + `api/index.php` — run the site on the community PHP runtime (`vercel-php`, PHP 8.5); `/assets` is served by Vercel's CDN
+- sessions (cart, sign-in), uploaded photos and rate limits are kept **in the database** instead of on disk (automatic on Vercel)
+- settings come from **environment variables** instead of a config file
+
+**You need** a MySQL-compatible database that accepts connections from the internet over TLS (for example TiDB Cloud Serverless or Aiven for MySQL), and — for order emails — a [Resend](https://resend.com) API key with your sending domain verified.
+
+1. In Vercel: **Add New → Project → Import** this GitHub repository. Framework preset: **Other**. Leave the build and output settings empty.
+2. Under **Settings → Environment Variables** add:
+
+   | Variable | Value |
+   | --- | --- |
+   | `DATABASE_URL` | `mysql://USER:PASSWORD@HOST:PORT/DATABASE` (URL-encode special characters in the password). `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` work too. |
+   | `SETUP_KEY` | A long random phrase — the installer asks for it once |
+   | `SITE_URL` | `https://your-domain` (optional; defaults to the project's production domain) |
+   | `MAIL_TO`, `MAIL_FROM`, `MAIL_FROM_NAME` | Where orders are emailed, and the sender buyers see |
+   | `RESEND_API_KEY` | Sends email through Resend (PHP `mail()` does not exist on Vercel) |
+   | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Card payments (§5) |
+   | `BANK_ACCOUNT_NAME`, `BANK_BSB`, `BANK_ACCOUNT_NUMBER` | Optional bank-transfer payment |
+
+3. **Deploy**, then open `https://your-domain/install/`, enter the setup key and create the administrator. The installer locks itself once an administrator exists.
+4. Every push to `main` redeploys the site.
+
+Without a database the deployment still shows the sample catalogue, size finder and guides, but the cart, checkout, forms and admin panel need the database.
+
+Limits on Vercel: uploads are capped at 4 MB (the platform's request limit), and the `/install` folder cannot be deleted from a running deployment — remove it from the repository after installing if you want it gone.
+
 ## 3. Site structure
 
 | URL | Page |
@@ -66,7 +96,8 @@ If `mod_rewrite` is not available, set `app.pretty_urls` to `false`; product, ca
 ├── checkout-return.php  stripe-webhook.php
 ├── measure-your-seal.php  materials.php  guides.php  guide.php  custom-quote.php
 ├── delivery-returns.php  terms-of-sale.php  privacy-policy.php  contact.php  about.php  404.php
-├── sitemap.php  robots.php  router.php (local only)  .htaccess
+├── sitemap.php  robots.php  media.php  router.php (local + Vercel routing)  .htaccess
+├── vercel.json  api/index.php  api/php.ini      Vercel entry point and settings
 ├── admin/        Orders, products, categories, guides, messages, shop settings, business details
 ├── install/      One-time installer — delete after use
 ├── includes/     bootstrap, config, db, security, content (catalogue + size finder), shop (cart,
@@ -124,6 +155,9 @@ With neither configured, checkout cannot take orders on the live site.
 | `app.site_url` | Public URL — used in emails, canonical links, the sitemap and Stripe return URLs |
 | `app.setup_key` | Secret asked for by `/install` on a live server |
 | `app.pretty_urls` | `/seal/…` style URLs (default `true`) |
+| `app.storage` | `disk` (normal hosting) or `db` (sessions, uploads and rate limits in the database); chosen automatically |
+| `db.ssl` | Require TLS for the database connection (automatic on Vercel) |
+| `mail.resend_api_key` | Send email through Resend instead of PHP `mail()` |
 | `db.*` | Database connection |
 | `mail.to`, `mail.from`, `mail.from_name`, `mail.cc` | Where order and message notifications go, and the sender shown to buyers |
 | `payments.*` | Stripe keys and bank details |
@@ -135,7 +169,7 @@ Email uses PHP `mail()`, which works on most cPanel hosts when `mail.from` is a 
 
 ## 8. Database
 
-Tables: `admins`, `login_attempts`, `settings`, `categories`, `products`, `orders`, `order_items`, `articles`, `enquiries` — see `database/schema.sql`. Money is stored as integer cents in AUD, GST inclusive. All queries are prepared statements.
+Tables: `admins`, `login_attempts`, `settings`, `categories`, `products`, `orders`, `order_items`, `articles`, `enquiries`, plus `sessions`, `uploads` and `rate_hits`, which are only used on hosts without a persistent disk — see `database/schema.sql`. Money is stored as integer cents in AUD, GST inclusive. All queries are prepared statements.
 
 ## 9. Before launch
 

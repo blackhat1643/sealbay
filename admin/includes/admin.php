@@ -194,9 +194,13 @@ function a_image_upload(string $field): array
         return ['path' => null, 'error' => null];
     }
     $allowed = ['jpg' => ['image/jpeg'], 'jpeg' => ['image/jpeg'], 'png' => ['image/png'], 'webp' => ['image/webp']];
-    $result  = handle_upload($_FILES[$field], $allowed, (int) config('uploads.image_max_bytes'), ST_ROOT . '/assets/uploads', 0644);
+    $inDb    = storage_in_db();
+    $result  = handle_upload($_FILES[$field], $allowed, (int) config('uploads.image_max_bytes'), $inDb ? ST_STORAGE . '/uploads' : ST_ROOT . '/assets/uploads', 0644);
     if (!$result['ok']) {
         return ['path' => null, 'error' => $result['error']];
+    }
+    if ($result['file'] !== null && $inDb && !stored_file_put($result['file'], ST_STORAGE . '/uploads/' . $result['file'], 'image')) {
+        return ['path' => null, 'error' => 'The image could not be saved.'];
     }
     return ['path' => 'uploads/' . $result['file'], 'error' => null];
 }
@@ -205,6 +209,7 @@ function a_delete_image(?string $relPath): void
 {
     if ($relPath && preg_match('#^uploads/[a-z0-9]+\.(?:webp|jpe?g|png)$#', $relPath)) {
         @unlink(ST_ROOT . '/assets/' . $relPath);
+        stored_file_delete(basename($relPath));
     }
 }
 

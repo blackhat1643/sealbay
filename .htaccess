@@ -25,9 +25,9 @@ ErrorDocument 403 /404.php
   RewriteRule ^guides/([a-z0-9-]+)/?$ guide.php?slug=$1 [L,QSA]
 
   # Private folders, hidden files and development files are never served.
-  RewriteRule ^(includes|data|database|storage)(/|$) - [F,L]
+  RewriteRule ^(includes|data|database|storage|api)(/|$) - [F,L]
   RewriteRule (^|/)\.(?!well-known/) - [F,L]
-  RewriteRule ^(router\.php|README\.md)$ - [F,L]
+  RewriteRule ^(router\.php|README\.md|vercel\.json)$ - [F,L]
 </IfModule>
 
 <FilesMatch "\.(sql|sqlite|lock|log|jsonl|md|ini|bak)$">

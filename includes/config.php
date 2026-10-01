@@ -32,6 +32,11 @@ $config = [
         'setup_key'   => '',
         // /seal/<slug>, /shop/<category>, /guides/<slug> (needs mod_rewrite). false = query-string URLs.
         'pretty_urls' => true,
+        // Where sessions, uploaded photos and rate limits are kept:
+        //   'disk' — files on the server (normal PHP hosting)
+        //   'db'   — in the database, for hosts without a persistent disk (Vercel and other serverless hosts)
+        //   null   — choose automatically ('db' on Vercel, otherwise 'disk')
+        'storage'     => null,
     ],
 
     /*
@@ -112,6 +117,7 @@ $config = [
         'pass'        => '',
         'charset'     => 'utf8mb4',
         'sqlite_path' => null,             // null = storage/database.sqlite
+        'ssl'         => null,             // true = require TLS (cloud databases); null = automatic (on when not localhost on Vercel)
     ],
 
     'mail' => [
@@ -120,6 +126,8 @@ $config = [
         'cc'        => '',
         'from'      => '',                 // must be a mailbox on your own domain, e.g. orders@yourdomain.com.au
         'from_name' => 'SealBay Australia',
+        // Hosts without PHP mail() (e.g. Vercel): set a Resend API key and email is sent through resend.com instead.
+        'resend_api_key' => '',
     ],
 
     'uploads' => [
@@ -158,6 +166,83 @@ foreach ($overrides as $file) {
             $config = array_replace_recursive($config, $local);
         }
     }
+}
+
+/*
+ * Environment variables (used on Vercel and other platforms where settings are not
+ * kept in a file). They override everything above.
+ */
+$env = static function (string ...$names): ?string {
+    foreach ($names as $name) {
+        $value = getenv($name);
+        if ($value !== false && $value !== '') {
+            return $value;
+        }
+    }
+    return null;
+};
+$envMap = [
+    'app.env'                        => ['APP_ENV'],
+    'app.site_url'                   => ['SITE_URL'],
+    'app.setup_key'                  => ['SETUP_KEY'],
+    'app.storage'                    => ['APP_STORAGE'],
+    'db.driver'                      => ['DB_DRIVER'],
+    'db.host'                        => ['DB_HOST', 'TIDB_HOST', 'MYSQL_HOST'],
+    'db.port'                        => ['DB_PORT', 'TIDB_PORT', 'MYSQL_PORT'],
+    'db.name'                        => ['DB_NAME', 'TIDB_DATABASE', 'MYSQL_DATABASE'],
+    'db.user'                        => ['DB_USER', 'TIDB_USER', 'MYSQL_USER'],
+    'db.pass'                        => ['DB_PASSWORD', 'TIDB_PASSWORD', 'MYSQL_PASSWORD'],
+    'mail.to'                        => ['MAIL_TO'],
+    'mail.from'                      => ['MAIL_FROM'],
+    'mail.from_name'                 => ['MAIL_FROM_NAME'],
+    'mail.resend_api_key'            => ['RESEND_API_KEY'],
+    'payments.stripe_secret_key'     => ['STRIPE_SECRET_KEY'],
+    'payments.stripe_webhook_secret' => ['STRIPE_WEBHOOK_SECRET'],
+    'payments.bank_account_name'     => ['BANK_ACCOUNT_NAME'],
+    'payments.bank_bsb'              => ['BANK_BSB'],
+    'payments.bank_account_number'   => ['BANK_ACCOUNT_NUMBER'],
+];
+foreach ($envMap as $key => $names) {
+    $value = $env(...$names);
+    if ($value !== null) {
+        [$section, $name]        = explode('.', $key);
+        $config[$section][$name] = $value;
+    }
+}
+// DATABASE_URL=mysql://user:password@host:3306/dbname
+if (($url = $env('DATABASE_URL', 'MYSQL_URL')) !== null && str_starts_with($url, 'mysql')) {
+    $parts = parse_url($url);
+    if (!empty($parts['host'])) {
+        $config['db'] = array_merge($config['db'], [
+            'driver' => 'mysql',
+            'host'   => $parts['host'],
+            'port'   => (int) ($parts['port'] ?? 3306),
+            'name'   => ltrim((string) ($parts['path'] ?? ''), '/'),
+            'user'   => rawurldecode((string) ($parts['user'] ?? '')),
+            'pass'   => rawurldecode((string) ($parts['pass'] ?? '')),
+        ]);
+    }
+}
+if (($ssl = $env('DB_SSL')) !== null) {
+    $config['db']['ssl'] = in_array(strtolower($ssl), ['1', 'true', 'on', 'yes'], true);
+}
+
+$onVercel = (bool) ($env('VERCEL', 'VERCEL_URL', 'VERCEL_ENV') ?? false);
+if ($onVercel) {
+    // Canonical URLs, emails and payment return links use the production domain.
+    if ($config['app']['site_url'] === '' && ($host = $env('VERCEL_PROJECT_PRODUCTION_URL')) !== null) {
+        $config['app']['site_url'] = 'https://' . $host;
+    }
+    // Vercel accepts request bodies up to about 4.5 MB.
+    $config['uploads']['max_bytes']       = min($config['uploads']['max_bytes'], 4 * 1024 * 1024);
+    $config['uploads']['image_max_bytes'] = min($config['uploads']['image_max_bytes'], 3 * 1024 * 1024);
+}
+if (!in_array($config['app']['storage'], ['disk', 'db'], true)) {
+    // Serverless hosts have a read-only project folder: keep sessions and uploads in the database there.
+    $config['app']['storage'] = ($onVercel || !is_writable(ST_ROOT . '/storage')) ? 'db' : 'disk';
+}
+if ($config['db']['ssl'] === null) {
+    $config['db']['ssl'] = $onVercel && !in_array($config['db']['host'], ['localhost', '127.0.0.1'], true);
 }
 
 return $config;
